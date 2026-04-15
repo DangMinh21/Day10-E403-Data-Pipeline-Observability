@@ -55,3 +55,14 @@ Tôi đã phối hợp với các thành viên khác để đảm bảo các quy
 ## 5. Hạn chế & việc chưa làm (50–80 từ)
 
 Một số hạn chế bao gồm việc các quy tắc làm sạch hiện tại chưa xử lý được tất cả các trường hợp dữ liệu phức tạp, ví dụ như các bản ghi có lỗi định dạng phức tạp. Trong tương lai, tôi dự định mở rộng các quy tắc để xử lý tốt hơn các trường hợp này và bổ sung thêm kiểm tra tự động để giảm thiểu lỗi.
+
+---
+
+## 6. Phân công công việc & vai trò Team Lead (80–120 từ)
+
+Trong vai trò Team Lead, tôi đã phân công công việc cho các thành viên trong nhóm dựa trên thế mạnh và sở trường của từng người. Cụ thể:
+- Thành viên 1 phụ trách phân tích dữ liệu và định nghĩa SLA trong `data_contract.yaml`.
+- Thành viên 3 thiết kế các kỳ vọng mới và kiểm tra pipeline.
+- Thành viên 4 hoàn thiện tài liệu và báo cáo nhóm.
+
+Tôi cũng đảm bảo rằng các thành viên phối hợp nhịp nhàng, tuân thủ timeline và chất lượng công việc. Ngoài ra, tôi đã tổ chức các buổi review định kỳ để kiểm tra tiến độ và hỗ trợ giải quyết các vấn đề phát sinh.
