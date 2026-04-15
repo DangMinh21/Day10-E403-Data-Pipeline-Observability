@@ -88,3 +88,11 @@ _________________
 ## 6. Rủi ro còn lại & việc chưa làm
 
 - …
+
+## Metric Impact Table
+
+| Rule Name                  | Total Rows | Cleaned Rows | Quarantined Rows | Notes                          |
+|----------------------------|------------|--------------|------------------|--------------------------------|
+| contains_sensitive_info    | 10         | 4            | 1                | Removed rows with sensitive info (e.g., URLs). |
+| invalid_exported_at_format | 10         | 4            | 4                | Quarantined rows with invalid or out-of-range exported_at dates. |
+| duplicate_doc_id           | 10         | 4            | 0                | No duplicates found in this dataset. |
