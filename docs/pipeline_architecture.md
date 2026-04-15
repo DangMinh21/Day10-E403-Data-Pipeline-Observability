@@ -13,6 +13,7 @@ raw export (CSV/API/…)  →  clean  →  validate (expectations)  →  embed (
 
 > Vẽ thêm: điểm đo **freshness**, chỗ ghi **run_id**, và file **quarantine**.
 
+Xem thêm: [diagram_architecture.png](./diagram_architecture.png)
 ```
 graph TD
     Raw[Raw Data Export] --> Clean[Clean Stage]
@@ -78,8 +79,10 @@ graph TD
 
 > Pipeline này cung cấp / làm mới corpus cho retrieval trong `day09/lab` như thế nào? (cùng `data/docs/` hay export riêng?)
 
----
+Pipeline Day 10 làm mới corpus cho Day 09 bằng cách embed chung vào collection "day10_kb" trong ChromaDB. Dữ liệu từ `data/docs/` (policy_refund_v4.txt, sla_p1_2026.txt, etc.) được chunk và embed, phục vụ retrieval cho multi-agent Day 09. Không export riêng, dùng chung DB để đảm bảo consistency.
 
 ## 5. Rủi ro đã biết
 
-- …
+- Chunk quá dài (>5000 ký tự) làm retrieval chậm; cần tối ưu chunking.
+- Freshness SLA 124 giờ có thể quá lỏng; đề xuất giảm xuống 48 giờ.
+- Expectation fail không alert real-time; cần tích hợp monitoring tool.

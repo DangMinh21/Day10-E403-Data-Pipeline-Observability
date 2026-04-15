@@ -74,14 +74,12 @@ Kiểm tra mỗi record có doc_id và exported_at không rỗng, bảo vệ tra
 - E4: chunk_min_length_8 (WARN)
 - E5: effective_date_iso_yyyy_mm_dd (HALT)
 - E6: hr_leave_no_stale_10d_annual (HALT)
-- **E7: chunk_text_length_10_5000 (HALT)** ✅ Mới
-- **E8: metadata_completeness_doc_id_exported_at (HALT)** ✅ Mới
+- **E7: chunk_text_length_10_5000 (HALT)** 
+- **E8: metadata_completeness_doc_id_exported_at (HALT)**
 
 **Ví dụ expectation behavior:**
 
 Run member3_baseline: raw_records=10 → cleaned=4, quarantine=4. Tất cả expectations PASS vì cleaning rules loại bad data trước. Run member3_error_test: thêm errors (doc_id rỗng, chunk quá dài/ngắn, exported_at rỗng) → và đều được quarantine, E7 & E8 vẫn PASS vì data có vấn đề không qua được cleaning.
-
----
 
 ## 3. Before / after ảnh hưởng retrieval hoặc agent (200–250 từ)
 
@@ -89,11 +87,16 @@ Run member3_baseline: raw_records=10 → cleaned=4, quarantine=4. Tất cả exp
 
 **Kịch bản inject:**
 
-_________________
+Trong Sprint 3, nhóm đã inject các lỗi vào dữ liệu thô để kiểm tra độ robust của pipeline. Các lỗi bao gồm: thêm chunk rỗng, thay đổi doc_id không hợp lệ, inject nội dung sai (ví dụ: refund window 14 ngày thay vì 7), và thêm metadata thiếu. File inject được lưu tại `data/raw/policy_export_dirty.csv` với run_id `inject-bad`.
 
 **Kết quả định lượng (từ CSV / bảng):**
 
-_________________
+Từ `artifacts/eval/before_after_eval.csv` và `artifacts/eval/after_inject_bad.csv`, pipeline đã duy trì chất lượng retrieval cao:
+
+- **Trước inject:** 4/4 câu hỏi có `contains_expected=yes`, `hits_forbidden=no`, `top1_doc_expected=yes` cho 1/4 câu hỏi.
+- **Sau inject:** Giữ nguyên 4/4 `contains_expected=yes`, `hits_forbidden=no`, nhờ cleaning rules và expectations loại bỏ bad data vào quarantine.
+
+Tuy nhiên, trong run `inject-bad` (manifest_inject-bad.json), cleaned_records giảm từ 6 xuống 4, quarantine tăng lên 6, chứng minh pipeline phát hiện và cô lập lỗi hiệu quả. Điều này đảm bảo agent không nhận thông tin sai lệch như "14 ngày hoàn tiền" thay vì 7 ngày.
 
 ---
 
@@ -101,7 +104,11 @@ _________________
 
 > SLA bạn chọn, ý nghĩa PASS/WARN/FAIL trên manifest mẫu.
 
-_________________
+Nhóm chọn SLA 124 giờ (5 ngày rưỡi) cho freshness, đo tại "publish" (sau embed). Nếu `latest_exported_at` của batch cũ hơn 124 giờ so với `run_timestamp`, freshness = FAIL.
+
+Trong manifest `ci-smoke.json`: run_timestamp = 2026-04-14T19:53:37, latest_exported_at = 2026-04-10T08:00:00. Chênh lệch ~4.5 ngày (<124 giờ) → PASS.
+
+Monitoring bao gồm: số quarantine_records, expectation fails, và freshness alerts gửi đến "team-data-alerts". Logs tại `artifacts/logs/` ghi lại chi tiết.
 
 ---
 
@@ -109,13 +116,17 @@ _________________
 
 > Dữ liệu sau embed có phục vụ lại multi-agent Day 09 không? Nếu có, mô tả tích hợp; nếu không, giải thích vì sao tách collection.
 
-_________________
+Dữ liệu sau embed phục vụ lại multi-agent Day 09. Collection "day10_kb" trong ChromaDB được sử dụng chung, với upsert theo chunk_id đảm bảo idempotency. Agent Day 09 truy vấn collection này để lấy context cho câu trả lời, tích hợp seamless qua API Chroma.
+
+Không tách collection vì dữ liệu Day 10 là extension của Day 09 (thêm docs mới), đảm bảo knowledge base liên tục.
 
 ---
 
 ## 6. Rủi ro còn lại & việc chưa làm
 
-- …
+- Rủi ro: Chunking quá dài (>5000 ký tự) có thể làm retrieval chậm; cần tối ưu embedding model.
+- Chưa làm: Auto-alert bot cho quarantine > threshold; production deployment với Docker.
+- Học tập: Halt strategy hiệu quả hơn warn; data contract là foundation cho observability.
 
 ## Metric Impact Table
 
