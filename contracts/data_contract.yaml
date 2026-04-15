@@ -8,7 +8,7 @@ owner_team: "Nguyễn Quang Tùng - 2A202600197, Nguyễn Thị Quỳnh Trang - 
 # ─── SLA & Freshness ────────────────────────────────────────────────────────
 freshness:
   measured_at: "publish"        # ingest | cleaned | publish
-  sla_hours: 24                 # Đọc từ env FRESHNESS_SLA_HOURS nếu muốn override
+  sla_hours: 124                 # Đọc từ env FRESHNESS_SLA_HOURS nếu muốn override
   alert_channel: "team-data-alerts"
   note: >
     SLA áp dụng cho thời điểm publish (sau embed). Nếu exported_at của batch
