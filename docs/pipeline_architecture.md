@@ -1,7 +1,7 @@
 # Kiến trúc pipeline — Lab Day 10
 
-**Nhóm:** _______________  
-**Cập nhật:** _______________
+**Nhóm:** Nhóm 9 - E403
+**Cập nhật:** 
 
 ---
 
@@ -12,6 +12,41 @@ raw export (CSV/API/…)  →  clean  →  validate (expectations)  →  embed (
 ```
 
 > Vẽ thêm: điểm đo **freshness**, chỗ ghi **run_id**, và file **quarantine**.
+
+```
+graph TD
+    Raw[Raw Data Export] --> Clean[Clean Stage]
+    
+    subgraph Member_2 [Cleaning]
+        Clean --> |Normalize/Fix| Cleaned[Cleaned Data]
+    end
+
+    subgraph Quality_Control [Quality & Contract]
+        Contract([data_contract.yaml]) -.-> |Rules| Val
+        Expect([expectations.py]) -.-> |Assertions| Val
+        Cleaned --> Val{Validate & Expect}
+    end
+    
+    Val -- "Fail (Halt)" --> Quar[Quarantine File]
+    Val -- "Pass" --> Embed[Embedding / Chroma]
+    
+    Inject((Error Injection)) -.-> |Test Stress| Raw
+    Quar -.-> |Analysis| Inject
+
+    Embed --> Serving[Serving / RAG]
+
+    subgraph Obs [Observability]
+        ID[run_id]
+        Logs[Expectations Matrix]
+        Fresh[Metric: Data Freshness]
+    end
+
+    ID -.-> Val
+    Val -.-> Logs
+    
+    Cleaned -.-> |Check Timestamp| Fresh
+    Fresh -.-> |Alert if Stale| Logs
+```
 
 ---
 
