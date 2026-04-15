@@ -1,80 +1,79 @@
 # Lab Day 10 — Data Pipeline & Data Observability
 
-**Môn:** AI in Action (AICB-P1)  
-**Chủ đề:** ETL / cleaning / expectation suite / embed / freshness / before-after evidence  
-**Thời gian:** 4 giờ (4 sprints × ~60 phút)  
-**Tiếp nối:** Day 08 RAG · Day 09 Multi-agent — **cùng case CS + IT Helpdesk**, hôm nay làm **tầng dữ liệu** trước khi agent “đọc đúng version”.
+**Môn:** AI in Action (AICB-P1)
+**Nhóm:** Nhóm 9 - E403
+**Thành viên:**
 
-**Slide:** [`../lecture-10.html`](../lecture-10.html)
+| Tên | Vai trò | MSSV |
+|-----|---------|------|
+| Nguyễn Quang Tùng | Ingestion / Raw Owner | 2A202600197 |
+| Đặng Văn Minh | Cleaning & Quality Owner | 2A202600027 |
+| Nguyễn Thị Quỳnh Trang | Embed & Idempotency Owner | 2A202600406 |
+| Đồng Văn Thịnh | Monitoring / Docs Owner | 2A202600365 |
 
----
-
-## Bối cảnh
-
-Vector store và agent Day 09 chỉ ổn nếu **pipeline ingest → clean → validate → publish** ổn. Lab này mô phỏng:
-
-- Export “raw” từ hệ nguồn (CSV mẫu) có **duplicate**, **dòng thiếu ngày**, **doc_id lạ**, **ngày hiệu lực không ISO**, **xung đột version HR (10 vs 12 ngày phép)**, và **chunk policy sai cửa sổ hoàn tiền (14 vs 7 ngày)** — đúng narrative slide 3 Day 10 + mở rộng phân tầng.
-- Nhóm phải có **log số record**, **quarantine**, **expectation halt có kiểm soát**, **run_id** trên manifest, và **bằng chứng before/after** trên retrieval test.
+**Repo:** <https://github.com/DangMinh21/Day10-E403-Data-Pipeline-Observability>
 
 ---
 
-## Mục tiêu học tập
+## Giới thiệu
 
-| Mục tiêu | Sprint |
-|----------|--------|
-| Ingest + map schema + log raw | Sprint 1 |
-| Cleaning rules + cleaned CSV + quarantine | Sprint 1–2 |
-| Expectation suite + embed Chroma (idempotent) | Sprint 2 |
-| Inject corruption + so sánh eval + quality report | Sprint 3 |
-| Freshness check + runbook + hoàn thiện docs & báo cáo | Sprint 4 |
+Pipeline ETL với Data Observability cho bộ corpus CS + IT Helpdesk (tiếp nối Day 09 Multi-agent). Pipeline đảm bảo dữ liệu được làm sạch, validate, và embed vào ChromaDB theo cách **idempotent** — agent chỉ nhận context đúng version, không bị nhiễu bởi data stale.
+
+**Vấn đề giải quyết:** CSV export raw từ hệ nguồn có duplicate, ngày sai định dạng, doc_id không hợp lệ, xung đột version HR (10 vs 12 ngày phép), chunk sai cửa sổ hoàn tiền (14 vs 7 ngày). Pipeline phát hiện, cô lập (quarantine), và sửa tự động — có log và manifest truy vết theo `run_id`.
 
 ---
 
 ## Cấu trúc thư mục
 
 ```
-lab/
-├── etl_pipeline.py           # Sprint 1–2: run ingest→clean→validate→embed
-├── eval_retrieval.py         # Sprint 3–4: before/after retrieval (CSV)
-├── grading_run.py            # JSONL cho câu grading (public muộn — xem SCORING)
-├── instructor_quick_check.py # GV: sanity artifact grading/manifest (tuỳ chọn)
+Day10-E403-Data-Pipeline-Observability/
+├── etl_pipeline.py               # Entrypoint chính: ingest → clean → validate → embed
+├── eval_retrieval.py             # Eval retrieval before/after (xuất CSV)
+├── grading_run.py                # Chạy grading JSONL (3 câu gq_d10_01..03)
+├── instructor_quick_check.py     # GV kiểm tra nhanh artifact
 │
 ├── transform/
-│   └── cleaning_rules.py     # Baseline rules — sinh viên mở rộng
+│   └── cleaning_rules.py         # 6 rule baseline + 3 rule mới (Member 2)
 ├── quality/
-│   └── expectations.py       # Baseline expectations — sinh viên mở rộng
+│   └── expectations.py           # 6 expectation baseline + E7, E8 mới (Member 3)
 ├── monitoring/
-│   └── freshness_check.py    # Đọc manifest + SLA đơn giản
+│   └── freshness_check.py        # Kiểm tra SLA freshness từ manifest
 │
 ├── contracts/
-│   └── data_contract.yaml    # Contract dữ liệu — điền owner/SLA
+│   └── data_contract.yaml        # Owner, SLA 124h, allowed_doc_ids, schema cleaned
 │
 ├── data/
-│   ├── docs/                 # 5 tài liệu (kế thừa nội dung Day 09 / policy)
+│   ├── docs/                     # 5 tài liệu policy (policy_refund_v4, sla_p1_2026, ...)
 │   ├── raw/
-│   │   └── policy_export_dirty.csv   # Export bẩn mẫu
-│   ├── test_questions.json           # Golden retrieval (3 câu)
-│   └── grading_questions.json        # 2 câu chấm (keyword-based)
+│   │   ├── policy_export_dirty.csv   # Raw export mẫu (có lỗi cố ý)
+│   │   └── inject_dirty.csv          # File inject Sprint 3 (chunk 14 ngày sai)
+│   ├── test_questions.json           # 4 câu golden retrieval
+│   └── grading_questions.json        # 3 câu chấm điểm
 │
-├── artifacts/                # Không commit chroma_db; commit được log/manifest/eval mẫu
-│   ├── logs/
-│   ├── manifests/
-│   ├── quarantine/
+├── artifacts/
+│   ├── logs/                     # run_*.log — có run_id, raw/cleaned/quarantine_records
+│   ├── manifests/                # manifest_*.json — metadata + freshness_check
+│   ├── quarantine/               # quarantine_*.csv — record bị loại + lý do
+│   ├── cleaned/                  # cleaned_*.csv — data sau cleaning
 │   └── eval/
+│       ├── before_fix.csv        # Eval sau inject (retrieval tệ — hits_forbidden=yes)
+│       ├── after_fix.csv         # Eval sau pipeline chuẩn (retrieval tốt)
+│       ├── before_after_eval.csv # Eval chuẩn
+│       └── grading_run.jsonl     # Kết quả 3 câu grading
 │
 ├── docs/
-│   ├── pipeline_architecture.md
-│   ├── data_contract.md
-│   ├── runbook.md
-│   └── quality_report_template.md
+│   ├── pipeline_architecture.md  # Sơ đồ luồng + ranh giới ingest/clean/embed
+│   ├── data_contract.md          # Source map, schema, quarantine rules
+│   ├── runbook.md                # Symptom → Detection → Diagnosis → Mitigation → Prevention
+│   └── quality_report_template.md  # Quality report với số liệu run 2026-04-15T16-20Z
 │
 ├── reports/
-│   ├── group_report.md
-│   └── individual/
-│       └── template.md
+│   ├── group_report.md           # Báo cáo nhóm đầy đủ
+│   └── individual/               # Báo cáo cá nhân 4 thành viên
 │
+├── .env                          # FRESHNESS_SLA_HOURS=124, CHROMA_COLLECTION=day10_kb
 ├── requirements.txt
-└── .env.example
+└── SCORING.md
 ```
 
 ---
@@ -82,138 +81,127 @@ lab/
 ## Setup
 
 ```bash
-cd lab
 python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env
+cp .env.example .env             # FRESHNESS_SLA_HOURS=124 đã được cấu hình
 ```
 
-**Lần đầu** SentenceTransformers có thể tải model `all-MiniLM-L6-v2` (~90MB) — cần mạng.
+> SentenceTransformers tải model `all-MiniLM-L6-v2` (~90MB) lần đầu — cần mạng.
 
 ---
 
-## Chạy pipeline (Definition of Done tối thiểu)
+## Cách chạy
+
+### Pipeline chuẩn (một lệnh)
 
 ```bash
-# Luồng chuẩn: fix stale refund 14→7, expectation pass, embed
+python etl_pipeline.py run
+```
+
+Log đầu ra mẫu:
+
+```text
+run_id=2026-04-15T16-20Z
+raw_records=10
+cleaned_records=4
+quarantine_records=4
+expectation[refund_no_stale_14d_window] OK (halt) :: violations=0
+expectation[hr_leave_no_stale_10d_annual] OK (halt) :: violations=0
+expectation[chunk_text_length_10_5000] OK (halt) :: out_of_range_chunks=0
+expectation[metadata_completeness_doc_id_exported_at] OK (halt) :: incomplete_metadata_count=0
+embed_prune_removed=4
+embed_upsert count=4 collection=day10_kb
+freshness_check=FAIL {...}
+PIPELINE_OK
+```
+
+> `freshness_check=FAIL` là hành vi đúng — CSV mẫu có `exported_at` cố định từ 10/04, sau 124h sẽ vượt SLA. Trong production, pipeline re-ingest từ nguồn để cập nhật timestamp.
+
+### Kiểm tra freshness
+
+```bash
+python etl_pipeline.py freshness --manifest artifacts/manifests/manifest_2026-04-15T16-20Z.json
+```
+
+### Eval retrieval
+
+```bash
+python eval_retrieval.py --out artifacts/eval/after_fix.csv
+```
+
+### Sprint 3 — Inject dữ liệu xấu và so sánh before/after
+
+```bash
+# Bước 1: Embed dữ liệu xấu (chunk "14 ngày" sai policy)
+python etl_pipeline.py run --raw data/raw/inject_dirty.csv --run-id before-inject --no-refund-fix --skip-validate
+
+# Bước 2: Eval — phải thấy q_refund_window hits_forbidden=yes
+python eval_retrieval.py --out artifacts/eval/before_fix.csv
+
+# Bước 3: Pipeline chuẩn để fix
 python etl_pipeline.py run
 
-# Kiểm tra freshness theo manifest vừa tạo
-python etl_pipeline.py freshness --manifest artifacts/manifests/manifest_<run-id>.json
+# Bước 4: Eval sau fix — phải thấy hits_forbidden=no
+python eval_retrieval.py --out artifacts/eval/after_fix.csv
 ```
 
-**Eval retrieval (sau khi đã embed):**
-
-```bash
-python eval_retrieval.py --out artifacts/eval/before_after_eval.csv
-cat artifacts/eval/before_after_eval.csv
-```
-
-> **Ghi chú chấm điểm:** `hits_forbidden` quét **toàn bộ top-k** chunk ghép lại (không chỉ top-1), để phát hiện “câu trả lời nhìn đúng nhưng context vẫn còn chunk stale” — đúng tinh thần observability.  
-> **Index snapshot:** sau mỗi lần `run`, embed **upsert** theo `chunk_id` và **xoá id không còn trong cleaned** để tránh vector cũ làm fail grading (quan sát được “publish boundary”).
-
-**Sprint 3 — inject có chủ đích (embed dữ liệu “xấu”, bỏ qua halt):**
-
-```bash
-python etl_pipeline.py run --run-id inject-bad --no-refund-fix --skip-validate
-python eval_retrieval.py --out artifacts/eval/after_inject_bad.csv
-# So sánh với file eval sau khi chạy lại pipeline chuẩn (không flag inject)
-```
-
-**Grading (sau 17:00):**
+### Grading
 
 ```bash
 python grading_run.py --out artifacts/eval/grading_run.jsonl
 ```
 
-**Giảng viên — kiểm tra nhanh artifact (tuỳ chọn):**
+---
+
+## Hướng dẫn chấm bài (GV)
+
+### Kiểm tra nhanh artifact
 
 ```bash
 python instructor_quick_check.py --grading artifacts/eval/grading_run.jsonl
-python instructor_quick_check.py --manifest artifacts/manifests/manifest_<run-id>.json
+python instructor_quick_check.py --manifest artifacts/manifests/manifest_2026-04-15T16-20Z.json
 ```
 
----
+### Kết quả grading JSONL (`artifacts/eval/grading_run.jsonl`)
 
-## 4 Sprints (chi tiết)
+| Câu | contains_expected | hits_forbidden | top1_doc_matches | Điểm |
+|-----|-------------------|----------------|------------------|------|
+| gq_d10_01 | true | false | — | 4/4 |
+| gq_d10_02 | true | false | — | 3/3 |
+| gq_d10_03 | true | false | true | 3/3 |
 
-### Sprint 1 (60') — Ingest & schema
+**Hạng: Merit** — `gq_d10_03` đạt đủ `contains_expected=true, hits_forbidden=false, top1_doc_matches=true`.
 
-- Đọc `data/raw/policy_export_dirty.csv` (hoặc bản raw nhóm tự tạo thêm).
-- Điền **source map** ngắn trong `docs/data_contract.md` (ít nhất 2 nguồn / failure mode / metric).
-- Chạy `python etl_pipeline.py run --run-id sprint1` và lưu log.
+### Bằng chứng Sprint 3 (before/after)
 
-**DoD:** Log có `raw_records`, `cleaned_records`, `quarantine_records`, `run_id`.
+| File | Câu q_refund_window | Ghi chú |
+|------|---------------------|---------|
+| `artifacts/eval/before_fix.csv` | `contains_expected=no, hits_forbidden=yes` | Sau inject chunk "14 ngày" |
+| `artifacts/eval/after_fix.csv` | `contains_expected=yes, hits_forbidden=no` | Sau pipeline chuẩn fix |
 
----
+### Cleaning rules mới (`transform/cleaning_rules.py`)
 
-### Sprint 2 (60') — Clean + validate + embed
+| Rule | Hàm | Tác động |
+|------|-----|----------|
+| Loại URL/thông tin nhạy cảm | `_contains_sensitive_info` | quarantine chunk chứa `https?://` |
+| Validate exported_at (2024–2027) | `_validate_exported_at` | quarantine nếu sai format hoặc ngoài range |
+| Deduplicate (doc_id, ngày) | `_deduplicate_doc_id` | loại bản ghi trùng trong batch |
 
-- Baseline đã có sẵn: allowlist `doc_id`, chuẩn hoá `effective_date`, quarantine HR cũ, fix refund 14→7, dedupe, v.v. Nhóm phải thêm ≥ **3 rule mới** và ≥ **2 expectation mới** (đếm trên file nhận được).
-- **Chống trivial:** mỗi rule/expectation mới phải có **tác động đo được** trên bộ mẫu hoặc trên inject (ghi trong `reports/group_report.md` bảng *metric_impact*: ví dụ `quarantine_records` tăng khi inject BOM, `expectation X fail` trước khi fix, v.v.). Rule chỉ “strip space” mà không đổi số liệu / không có kịch bản chứng minh → **trừ theo SCORING**.
-- Đảm bảo embed **idempotent** (upsert `chunk_id` + prune id thừa sau publish — baseline đã làm).
+### Expectations mới (`quality/expectations.py`)
 
-**DoD:** `python etl_pipeline.py run` **exit 0** với expectation không halt (trừ khi demo có chủ đích).
-
----
-
-### Sprint 3 (60') — Inject corruption & before/after
-
-- Cố ý làm hỏng dữ liệu (duplicate thêm, sai policy, hoặc `--no-refund-fix` + `--skip-validate`).
-- Lưu **2 file eval** hoặc 1 file có cột `scenario` (nhóm tự quy ước) + ảnh chụp / đoạn log chứng minh.
-- Hoàn thành `docs/quality_report_template.md` thành `docs/quality_report.md` (hoặc để nguyên tên template nếu GV quy định khác — ghi rõ trong group report).
-
-**DoD:** Có đoạn văn + số liệu chứng minh retrieval **tệ hơn** trước khi fix và **tốt hơn** sau fix (ít nhất câu `q_refund_window`). **Merit:** thêm một dòng chứng cứ cho `q_leave_version` (hoặc tương đương trong grading: `gq_d10_03`) — xem `SCORING.md`.
-
----
-
-### Sprint 4 (60') — Monitoring + docs + báo cáo
-
-- Điền `docs/pipeline_architecture.md`, `docs/data_contract.md`, `docs/runbook.md`.
-- `python etl_pipeline.py freshness --manifest …` — giải thích PASS/WARN/FAIL trong runbook.
-- Hoàn thành `reports/group_report.md` + mỗi người `reports/individual/[ten].md`.
-
-**DoD:** README nhóm có “một lệnh chạy cả pipeline”; peer review 3 câu hỏi (slide Phần E) được ghi trong group report hoặc runbook.
+| ID | Tên | Severity |
+|----|-----|----------|
+| E7 | chunk_text_length_10_5000 | HALT |
+| E8 | metadata_completeness_doc_id_exported_at | HALT |
 
 ---
 
-## Deliverables (nộp bài)
+## Tài liệu tham khảo
 
-| Item | Ghi chú |
-|------|---------|
-| `etl_pipeline.py` + `transform/` + `quality/` + `monitoring/` | Có thể mở rộng file, không xóa entrypoint bắt buộc |
-| `contracts/data_contract.yaml` | Điền owner, SLA, nguồn |
-| `artifacts/logs/`, `manifests/`, `quarantine/`, `eval/` | Ít nhất 1 run “tốt” + evidence inject |
-| `docs/*.md` (3 file + quality report) | Theo template |
-| `reports/group_report.md` | |
-| `reports/individual/*.md` | Mỗi thành viên |
-| `artifacts/eval/grading_run.jsonl` | Nếu khóa học chấm grading (3 câu: `gq_d10_01` … `gq_d10_03`) |
-
----
-
-## Phân vai (gợi ý — đồng bộ slide Hands-on 10)
-
-| Vai | Trách nhiệm | Sprint chính |
-|-----|-------------|----------------|
-| **Ingestion Owner** | raw paths, logging, manifest | 1 |
-| **Cleaning / Quality Owner** | `cleaning_rules.py`, `expectations.py`, quarantine | 1–3 |
-| **Embed Owner** | Chroma collection, idempotency, eval | 2–3 |
-| **Monitoring / Docs Owner** | freshness, runbook, 3 docs, group report | 4 |
-
----
-
-## Debug order (nhắc từ slide Day 10)
-
-```
-Freshness / version → Volume & errors → Schema & contract → Lineage / run_id → mới đến model/prompt
-```
-
----
-
-## Tài nguyên tham khảo
-
-- Slide: [`../lecture-10.html`](../lecture-10.html)
-- Lab Day 09 (orchestration): [`../../day09/lab/README.md`](../../day09/lab/README.md)
-- Great Expectations (tuỳ chọn nâng cao): https://docs.greatexpectations.io/
-- ChromaDB: https://docs.trychroma.com/
+- [docs/pipeline_architecture.md](docs/pipeline_architecture.md) — Sơ đồ luồng
+- [docs/data_contract.md](docs/data_contract.md) — Source map và schema
+- [docs/runbook.md](docs/runbook.md) — Incident runbook
+- [docs/quality_report_template.md](docs/quality_report_template.md) — Quality report Sprint 3
+- [reports/group_report.md](reports/group_report.md) — Báo cáo nhóm
+- [SCORING.md](SCORING.md) — Rubric chấm điểm
