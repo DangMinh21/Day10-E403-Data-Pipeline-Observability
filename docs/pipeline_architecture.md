@@ -66,6 +66,12 @@ graph TD
 
 > Mô tả: upsert theo `chunk_id` hay strategy khác? Rerun 2 lần có duplicate vector không?
 
+- **Mô tả:** Pipeline sử dụng chiến lược Upsert dựa trên chunk_id. Trong log, dòng embed_upsert count=4 cho thấy dữ liệu được đẩy vào collection với ID định danh cụ thể.
+
+- **Cơ chế Pruning:** Đặc biệt, pipeline có bước embed_prune_removed=2. Điều này nghĩa là trước khi nạp mới, hệ thống sẽ kiểm tra và xóa bỏ các ID cũ không còn tồn tại trong đợt run này để đảm bảo Vector DB luôn khớp 1:1 với file Cleaned CSV.
+
+- **Duplicate:** Rerun 2 lần không gây duplicate vector. Nhờ cơ chế upsert, nếu chunk_id đã tồn tại, ChromaDB sẽ cập nhật nội dung thay vì chèn thêm bản ghi mới.
+
 ---
 
 ## 4. Liên hệ Day 09
