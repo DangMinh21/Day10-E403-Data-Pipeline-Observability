@@ -13,6 +13,7 @@ raw export (CSV/API/…)  →  clean  →  validate (expectations)  →  embed (
 
 > Vẽ thêm: điểm đo **freshness**, chỗ ghi **run_id**, và file **quarantine**.
 
+Xem thêm: [diagram_architecture.png](./diagram_architecture.png)
 ```
 graph TD
     Raw[Raw Data Export] --> Clean[Clean Stage]
