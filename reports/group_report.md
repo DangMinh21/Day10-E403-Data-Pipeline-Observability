@@ -2,22 +2,16 @@
 
 **Tên nhóm:** Nhóm 9 - E403  
 **Thành viên:**
-| Tên | Vai trò (Day 10) | Email |
-|-----|------------------|-------|
-| Nguyễn Quang Tùng | Ingestion / Raw Owner | quangtungnguyen613@gmail.com |
-| Đặng Văn Minh | Cleaning & Quality Owner | minhdv0201@gmail.com |
-| Nguyễn Thị Quỳnh Trang | Embed & Idempotency Owner | quynhtrang1225@gmail.com |
-| Đồng Văn Thịnh | Monitoring / Docs Owner | dvttvdthanhan@gmail.com |
+
+| Tên                     | Vai trò (Day 10)          | Email                     |
+|-------------------------|---------------------------|---------------------------|
+| Nguyễn Quang Tùng       | Ingestion / Raw Owner     | quangtungnguyen613@gmail.com |
+| Đặng Văn Minh           | Cleaning & Quality Owner  | minhdv0201@gmail.com      |
+| Nguyễn Thị Quỳnh Trang  | Embed & Idempotency Owner | quynhtrang1225@gmail.com  |
+| Đồng Văn Thịnh          | Monitoring / Docs Owner   | dvttvdthanhan@gmail.com   |
 
 **Ngày nộp:** 15/04/2026  
-**Repo:** https://github.com/DangMinh21/Day10-E403-Data-Pipeline-Observability  
-**Độ dài khuyến nghị:** 600–1000 từ
-
----
-
-> **Nộp tại:** `reports/group_report.md`  
-> **Deadline commit:** xem `SCORING.md` (code/trace sớm; report có thể muộn hơn nếu được phép).  
-> Phải có **run_id**, **đường dẫn artifact**, và **bằng chứng before/after** (CSV eval hoặc screenshot).
+**Repo:** [GitHub Repository](https://github.com/DangMinh21/Day10-E403-Data-Pipeline-Observability)
 
 ---
 
