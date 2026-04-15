@@ -1,0 +1,6 @@
+chunk_id,doc_id,chunk_text,effective_date,exported_at
+1,policy_refund_v4,"Yêu cầu được gửi trong vòng 7 ngày làm việc kể từ thời điểm xác nhận đơn hàng.",2026-02-01,2026-04-10T08:00:00
+2,policy_refund_v4,"Yêu cầu được gửi trong vòng 7 ngày làm việc kể từ thời điểm xác nhận đơn hàng.",2026-02-01,2026-04-10T08:00:00
+3,sla_p1_2026,"Ticket P1 co SLA phan hoi ban dau 15 phut va resolution trong 4 gio",2026-02-01,2026-04-10T08:00:00
+4,it_helpdesk_faq,"Tai khoan bi khoa sau 5 lan dang nhap sai lien tiep",2026-02-01,2026-04-10T08:00:00
+5,hr_leave_policy,"Nhan vien duoi 3 nam kinh nghiem duoc 12 ngay phep nam",2026-02-01,2026-04-10T08:00:00
