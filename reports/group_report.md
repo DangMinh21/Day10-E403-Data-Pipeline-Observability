@@ -1,16 +1,16 @@
 # Báo Cáo Nhóm — Lab Day 10: Data Pipeline & Data Observability
 
-**Tên nhóm:** ___________  
+**Tên nhóm:** Nhóm 9 - E403  
 **Thành viên:**
 | Tên | Vai trò (Day 10) | Email |
 |-----|------------------|-------|
-| ___ | Ingestion / Raw Owner | ___ |
-| ___ | Cleaning & Quality Owner | ___ |
-| ___ | Embed & Idempotency Owner | ___ |
-| ___ | Monitoring / Docs Owner | ___ |
+| Nguyễn Quang Tùng | Ingestion / Raw Owner | quangtungnguyen613@gmail.com |
+| Đặng Văn Minh | Cleaning & Quality Owner | minhdv0201@gmail.com |
+| Nguyễn Thị Quỳnh Trang | Embed & Idempotency Owner | quynhtrang1225@gmail.com |
+| Đồng Văn Thịnh | Monitoring / Docs Owner | dvttvdthanhan@gmail.com |
 
-**Ngày nộp:** ___________  
-**Repo:** ___________  
+**Ngày nộp:** 15/04/2026  
+**Repo:** https://github.com/DangMinh21/Day10-E403-Data-Pipeline-Observability  
 **Độ dài khuyến nghị:** 600–1000 từ
 
 ---
@@ -26,12 +26,25 @@
 > Nguồn raw là gì (CSV mẫu / export thật)? Chuỗi lệnh chạy end-to-end? `run_id` lấy ở đâu trong log?
 
 **Tóm tắt luồng:**
+Pipeline vận hành theo mô hình Automated ETL với Data Observability, đóng vai trò là "lớp gác cổng" kiến thức cho Agent qua 4 giai đoạn:
 
-_________________
+1. **Ingest:** Trích xuất dữ liệu thô từ file `policy_export_dirty.csv`.
+
+2. **Transform:** Chuẩn hóa định dạng và áp dụng logic nghiệp vụ (fix refund window).
+
+3. **Quality Control:** Kiểm tra các kỳ vọng dữ liệu (expectations). Hệ thống tự động Halt (dừng) nếu phát hiện lỗi nghiêm trọng để bảo vệ Vector DB, hoặc đẩy bản ghi lỗi vào Quarantine.
+
+4. **Embed & Manifest:** Thực hiện upsert dữ liệu sạch vào ChromaDB theo chunk_id để chống trùng lặp (Idempotency). Cuối cùng, tạo file Manifest ghi lại metadata và kiểm tra Freshness SLA.
 
 **Lệnh chạy một dòng (copy từ README thực tế của nhóm):**
 
-_________________
+```
+# Luồng chuẩn: fix stale refund 14→7, expectation pass, embed
+python etl_pipeline.py run
+
+# Kiểm tra freshness theo manifest vừa tạo
+python etl_pipeline.py freshness --manifest artifacts/manifests/manifest_<run-id>.json
+```
 
 ---
 
