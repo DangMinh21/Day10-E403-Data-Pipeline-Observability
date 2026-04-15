@@ -73,5 +73,3 @@ Trong role Monitoring/Docs, tôi học được giá trị của observability t
 - **Quality Assurance:** Review artifacts trước submit, đảm bảo run_id và paths chính xác.
 
 **Kết quả:** Pipeline có full docs, team có playbook cho production. Bước tiếp: Implement auto-alerts và integrate với Day 11 guardrails để chặn bad responses.
-
-(Độ dài: ~550 từ)
