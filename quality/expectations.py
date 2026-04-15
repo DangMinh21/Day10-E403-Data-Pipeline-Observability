@@ -112,5 +112,41 @@ def run_expectations(cleaned_rows: List[Dict[str, Any]]) -> Tuple[List[Expectati
         )
     )
 
+    # E7: chunk_text phải nằm trong khoảng 10-5000 ký tự
+    # Đảm bảo chunk không quá ngắn (< 10) hoặc quá dài (> 5000)
+    # Halt nếu có chunk ngoài phạm vi vì có thể chỉ ra lỗi chunking hoặc cleaning
+    bad_chunk_length = [
+        r
+        for r in cleaned_rows
+        if len((r.get("chunk_text") or "")) < 10 or len((r.get("chunk_text") or "")) > 5000
+    ]
+    ok7 = len(bad_chunk_length) == 0
+    results.append(
+        ExpectationResult(
+            "chunk_text_length_10_5000",
+            ok7,
+            "halt",
+            f"out_of_range_chunks={len(bad_chunk_length)}",
+        )
+    )
+
+    # E8: metadata completeness - doc_id và exported_at không được rỗng
+    # Checks để đảm bảo mỗi record có đủ metadata để truy vết nguồn gốc
+    # Halt vì metadata thiếu có thể ảnh hưởng đến audit trail và freshness check
+    bad_metadata = [
+        r
+        for r in cleaned_rows
+        if not (r.get("doc_id") or "").strip() or not (r.get("exported_at") or "").strip()
+    ]
+    ok8 = len(bad_metadata) == 0
+    results.append(
+        ExpectationResult(
+            "metadata_completeness_doc_id_exported_at",
+            ok8,
+            "halt",
+            f"incomplete_metadata_count={len(bad_metadata)}",
+        )
+    )
+
     halt = any(not r.passed and r.severity == "halt" for r in results)
     return results, halt
