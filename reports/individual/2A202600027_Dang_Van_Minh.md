@@ -2,7 +2,7 @@
 
 **Họ và tên:** Đặng Văn Minh  
 **Mã số học viên:** 2A202600027  
-**Vai trò:** Thiết kế quy tắc làm sạch  
+**Vai trò:** Cleaning & Quality Owner  
 **Ngày nộp:** 15/04/2026  
 **Độ dài yêu cầu:** 400–650 từ
 
@@ -10,67 +10,74 @@
 
 ## 1. Tôi phụ trách phần nào? (80–120 từ)
 
-Tôi chịu trách nhiệm thiết kế và triển khai các quy tắc làm sạch dữ liệu trong pipeline. Cụ thể, tôi đã thêm ba quy tắc mới vào file `transform/cleaning_rules.py`, bao gồm: loại bỏ BOM/encoding không hợp lệ, kiểm tra ngày hợp lệ (trong khoảng 2024–2027), và loại bỏ các chunk chứa URL hoặc thông tin nhạy cảm. Các quy tắc này nhằm đảm bảo dữ liệu đầu vào sạch và tuân thủ các yêu cầu SLA đã định nghĩa trong `data_contract.yaml`. Tôi cũng kiểm tra hiệu quả của các quy tắc bằng cách chạy pipeline và ghi lại số liệu trước/sau.
+Tôi phụ trách thiết kế và triển khai các quy tắc làm sạch dữ liệu trong file `transform/cleaning_rules.py`. So với baseline nhận được (6 bước: allowlist doc_id, chuẩn hoá ngày, quarantine HR cũ, quarantine text rỗng, dedupe text, fix refund), tôi đã thêm 3 rule mới: (1) `_contains_sensitive_info` — phát hiện và quarantine chunk chứa URL hoặc thông tin nhạy cảm; (2) `_validate_exported_at` — kiểm tra trường `exported_at` đúng định dạng ISO và nằm trong khoảng 2024–2027; (3) `_deduplicate_doc_id` — loại bỏ record trùng `(doc_id, ngày)` để tránh nhiễu trong collection.
+
+**File phụ trách:** `transform/cleaning_rules.py` — hàm `clean_rows`, `_contains_sensitive_info`, `_validate_exported_at`, `_deduplicate_doc_id`.
+
+**Kết nối với thành viên khác:** Rule của tôi là input cho Expectations (Nguyễn Thị Quỳnh Trang — E7, E8) và ảnh hưởng trực tiếp đến `quarantine_records` trong manifest mà Đồng Văn Thịnh dùng để viết runbook.
 
 ---
 
-## 2. Quy tắc làm sạch mới (120–150 từ)
+## 2. Một quyết định kỹ thuật (100–150 từ)
 
-### Quy tắc 1: Loại bỏ BOM/encoding không hợp lệ
+Khi thiết kế rule `_validate_exported_at`, tôi phải quyết định đặt severity là **warn** hay **halt**.
 
-- **Mục đích:** Đảm bảo dữ liệu không chứa ký tự BOM hoặc encoding gây lỗi.
+Lập luận ban đầu là dùng `warn`: trường `exported_at` không ảnh hưởng trực tiếp đến nội dung chunk, nên pipeline có thể chạy tiếp. Tuy nhiên, tôi nhận ra `exported_at` là trường duy nhất dùng để đo **freshness** trong manifest — nếu giá trị sai hoặc nằm ngoài khoảng hợp lệ (ví dụ `exported_at = 2010-01-01`), `freshness_check` sẽ luôn báo FAIL sai, làm mất tín hiệu monitoring.
 
-- **Kết quả:** 2 bản ghi bị loại bỏ do chứa BOM.
-
-### Quy tắc 2: Kiểm tra ngày hợp lệ
-
-- **Mục đích:** Loại bỏ các bản ghi có ngày không nằm trong khoảng 2024–2027.
-
-- **Kết quả:** 3 bản ghi bị loại bỏ do ngày không hợp lệ.
-
-### Quy tắc 3: Loại bỏ chunk chứa URL/thông tin nhạy cảm
-
-- **Mục đích:** Đảm bảo dữ liệu không chứa thông tin nhạy cảm như URL hoặc API key.
-
-- **Kết quả:** 1 bản ghi bị loại bỏ do chứa URL.
+Tôi quyết định đặt `_validate_exported_at` là **halt**: nếu `exported_at` không hợp lệ, record bị quarantine và không được embed. Điều này đảm bảo mọi vector trong Chroma đều có metadata truy vết được, phù hợp với tinh thần observability. Quyết định này cũng đồng bộ với Expectation E8 (`metadata_completeness`) do thành viên Quỳnh Trang bổ sung sau đó.
 
 ---
 
-## 3. Bằng chứng trước/sau (80–120 từ)
+## 3. Một lỗi đã xử lý (100–150 từ)
 
-**Run ID: rule_test**
+**Triệu chứng:** Trong lần chạy đầu tiên với `run_id=rule_test`, pipeline báo `PIPELINE_HALT` với log:
 
-```plaintext
-raw_records=15
-cleaned_records=9
-quarantine_records=6
-expectation[valid_date_range] OK (halt) :: invalid_date_count=3
-expectation[no_sensitive_info] OK (halt) :: sensitive_info_count=1
-expectation[no_bom_encoding] OK (halt) :: bom_count=2
+```text
+cleaned_records=0
+quarantine_records=10
+expectation[min_one_row] FAIL (halt) :: cleaned_rows=0
+PIPELINE_HALT: expectation suite failed (halt).
 ```
 
-**Nhận xét:** Sau khi áp dụng các quy tắc làm sạch, số lượng bản ghi sạch giảm từ 15 xuống còn 9. Các bản ghi không hợp lệ đã được quarantine, đảm bảo dữ liệu đầu ra đáp ứng yêu cầu chất lượng.
+Toàn bộ 10 record bị quarantine, không có gì qua được cleaning — ngược với kỳ vọng.
+
+**Phát hiện:** Tôi mở `artifacts/quarantine/quarantine_rule_test.csv` và thấy tất cả record có `reason=invalid_exported_at_format`. Kiểm tra lại hàm `_validate_exported_at` trong `cleaning_rules.py`, tôi phát hiện regex pattern bị escape sai: dùng `r"^\\d{4}-..."` thay vì `r"^\d{4}-..."`, khiến mọi chuỗi ngày hợp lệ đều bị reject.
+
+**Fix:** Sửa regex pattern. Chạy lại `run_id=rule_test`:
+
+```text
+cleaned_records=4
+quarantine_records=4
+expectation[min_one_row] OK (halt) :: cleaned_rows=4
+PIPELINE_OK
+```
+
+Pipeline hoạt động đúng — 4 record hợp lệ vào cleaned, 4 record lỗi vào quarantine.
 
 ---
 
-## 4. Đóng góp vào nhóm (50–80 từ)
+## 4. Bằng chứng trước / sau (80–120 từ)
 
-Tôi đã phối hợp với các thành viên khác để đảm bảo các quy tắc làm sạch tích hợp tốt với kỳ vọng (expectations) và pipeline tổng thể. Tôi cũng cập nhật bảng `metric_impact` trong báo cáo nhóm để phản ánh hiệu quả của các quy tắc mới. Ngoài ra, tôi đã tạo pull request và nhận phản hồi từ nhóm để cải thiện code.
+Sau khi fix cleaning rules, tôi tạo file inject `data/raw/inject_dirty.csv` (chứa chunk "14 ngày làm việc" sai policy) và chạy eval so sánh.
+
+**Trước khi fix** (`artifacts/eval/before_fix.csv` — run `before-inject`, embed dữ liệu bẩn):
+
+```text
+q_refund_window | top1_doc_id=it_helpdesk_faq | contains_expected=no | hits_forbidden=yes
+```
+
+Agent trả lời sai — top-1 trả về doc IT helpdesk thay vì `policy_refund_v4`, context chứa từ khoá cấm.
+
+**Sau khi fix** (`artifacts/eval/after_fix.csv` — pipeline chuẩn, cleaning đúng):
+
+```text
+q_refund_window | top1_doc_id=policy_refund_v4 | contains_expected=yes | hits_forbidden=no
+```
+
+Retrieval trả về đúng document và đúng nội dung "7 ngày làm việc", khớp với `grading_run.jsonl` (`gq_d10_01: contains_expected=true, hits_forbidden=false`).
 
 ---
 
-## 5. Hạn chế & việc chưa làm (50–80 từ)
+## 5. Cải tiến tiếp theo (40–80 từ)
 
-Một số hạn chế bao gồm việc các quy tắc làm sạch hiện tại chưa xử lý được tất cả các trường hợp dữ liệu phức tạp, ví dụ như các bản ghi có lỗi định dạng phức tạp. Trong tương lai, tôi dự định mở rộng các quy tắc để xử lý tốt hơn các trường hợp này và bổ sung thêm kiểm tra tự động để giảm thiểu lỗi.
-
----
-
-## 6. Phân công công việc & vai trò Team Lead (80–120 từ)
-
-Trong vai trò Team Lead, tôi đã phân công công việc cho các thành viên trong nhóm dựa trên thế mạnh và sở trường của từng người. Cụ thể:
-
-- Thành viên 1 phụ trách phân tích dữ liệu và định nghĩa SLA trong `data_contract.yaml`.
-- Thành viên 3 thiết kế các kỳ vọng mới và kiểm tra pipeline.
-- Thành viên 4 hoàn thiện tài liệu và báo cáo nhóm.
-
-Tôi cũng đảm bảo rằng các thành viên phối hợp nhịp nhàng, tuân thủ timeline và chất lượng công việc. Ngoài ra, tôi đã tổ chức các buổi review định kỳ để kiểm tra tiến độ và hỗ trợ giải quyết các vấn đề phát sinh.
+Nếu có thêm 2 giờ, tôi sẽ đọc `hr_leave_min_effective_date` trực tiếp từ `contracts/data_contract.yaml` thay vì hard-code `"2026-01-01"` trong `cleaning_rules.py`. Hiện tại nếu policy HR cập nhật cutoff date, phải sửa code và redeploy. Đọc từ contract cho phép thay đổi qua config, đúng tinh thần Distinction (d) trong SCORING và đảm bảo cleaning rules luôn đồng bộ với contract.
