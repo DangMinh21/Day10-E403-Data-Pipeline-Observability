@@ -54,11 +54,11 @@ graph TD
 
 | Thành phần | Input | Output | Owner nhóm |
 |------------|-------|--------|--------------|
-| Ingest | … | … | … |
-| Transform | … | … | … |
-| Quality | … | … | … |
-| Embed | … | … | … |
-| Monitor | … | … | … |
+| Ingest | File JSON/CSV thô từ hệ thống (policy_export_dirty.csv) | List of Dictionaries (Dữ liệu thô trong bộ nhớ) | 1 |
+| Transform | List of Dictionaries (Thô) | (Thô)	Cleaned DataFrame (Đã sửa lỗi font, ngày tháng, xóa URL) | 2 |
+| Quality | Cleaned DataFrame + `data_contract.yaml` | Validated DataFrame & Quarantine File (Lưu bản ghi lỗi) | 1 & 3 |
+| Embed | Validated DataFrame | Vector Database (ChromaDB) / Final CSV | All |
+| Monitor | Pipeline Logs, `run_id`, Metadata | Expectations Matrix & Freshness Metrics | 3 |
 
 ---
 
