@@ -5,7 +5,7 @@
 **Vai trò:** Ingestion Owner — Phân tích dữ liệu & Hợp đồng dữ liệu (Member 1)
 **Ngày nộp:** 2026-04-15
 **run_id tham chiếu:** `sprint1`
-
+**repo data pipeline observability:** https://github.com/GDGoC-FPTU/data-pipeline-observability-shiina613.git
 ---
 
 ## 1. Tôi phụ trách phần nào?
